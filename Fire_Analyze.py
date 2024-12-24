@@ -42,6 +42,8 @@ def delete_expenses(expense_ids):
         c.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
     conn.commit()
 
+
+# カテゴリー関連の関数
 def add_category(category_name):
     c.execute("INSERT INTO categories (category_name) VALUES (?)", (category_name,))
     conn.commit()
@@ -54,9 +56,6 @@ def delete_category(category_name):
     c.execute("DELETE FROM categories WHERE category_name = ?", (category_name,))
     conn.commit()
 
-# タイトル
-st.title("費用管理アプリ")
-# カテゴリー追加フォーム
 # カテゴリーの一覧を再取得
 categories = get_categories()
 categories = categories if categories else ["家賃", "食費", "交通費", "趣味"]  # カテゴリがない場合のデフォルト
@@ -72,7 +71,9 @@ with st.sidebar.form("category_form"):
         if new_category:
             add_category(new_category)
             st.sidebar.success(f"'{new_category}' カテゴリーを追加しました！")
-            categories = get_categories()  # 最新のカテゴリーリストを取得
+            # セッションステートを使用してカテゴリーリストを更新
+            if "categories" in st.session_state:
+                st.session_state.categories = get_categories()
         else:
             st.sidebar.error("カテゴリー名を入力してください。")
 
@@ -82,10 +83,18 @@ if st.sidebar.button("カテゴリー削除"):
     if category_to_delete:
         delete_category(category_to_delete)
         st.sidebar.success(f"'{category_to_delete}' カテゴリーを削除しました！")
-        categories = get_categories()  # 最新のカテゴリーリストを取得
-        st.experimental_rerun()  # ページを再読み込み
+        # セッションステートを使用してカテゴリーリストを更新
+        if "categories" in st.session_state:
+            st.session_state.categories = get_categories()
     else:
         st.sidebar.warning("削除するカテゴリーを選択してください。")
+
+# セッションステートでカテゴリーリストを更新
+if "categories" not in st.session_state:
+    st.session_state.categories = categories
+
+# 再度、カテゴリーのリストをセッションステートから読み込む
+categories = st.session_state.categories
 
 
 # サイドバーでカテゴリーを選択し、商品名と費用を一括入力
