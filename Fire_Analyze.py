@@ -56,6 +56,37 @@ def delete_category(category_name):
 
 # タイトル
 st.title("費用管理アプリ")
+# カテゴリー追加フォーム
+# カテゴリーの一覧を再取得
+categories = get_categories()
+categories = categories if categories else ["家賃", "食費", "交通費", "趣味"]  # カテゴリがない場合のデフォルト
+
+# カテゴリー追加フォーム
+st.sidebar.header("カテゴリー管理")
+
+# カテゴリー追加
+with st.sidebar.form("category_form"):
+    new_category = st.text_input("新しいカテゴリー名を入力")
+    add_category_button = st.form_submit_button("カテゴリー追加")
+    if add_category_button:
+        if new_category:
+            add_category(new_category)
+            st.sidebar.success(f"'{new_category}' カテゴリーを追加しました！")
+            categories = get_categories()  # 最新のカテゴリーリストを取得
+        else:
+            st.sidebar.error("カテゴリー名を入力してください。")
+
+# カテゴリー削除
+category_to_delete = st.sidebar.selectbox("削除するカテゴリーを選択", categories)
+if st.sidebar.button("カテゴリー削除"):
+    if category_to_delete:
+        delete_category(category_to_delete)
+        st.sidebar.success(f"'{category_to_delete}' カテゴリーを削除しました！")
+        categories = get_categories()  # 最新のカテゴリーリストを取得
+        st.sidebar.experimental_rerun()  # ページを再読み込み
+    else:
+        st.sidebar.warning("削除するカテゴリーを選択してください。")
+
 
 # サイドバーでカテゴリーを選択し、商品名と費用を一括入力
 st.sidebar.header("費用の一括入力")
