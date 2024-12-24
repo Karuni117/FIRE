@@ -124,7 +124,48 @@ with st.sidebar.form("expense_form"):
             st.sidebar.error("費用には数値を入力してください。")
 
 # FIREページ
-st.header("FIRE (Financial Independence, Retire Early) 目標")
+# 目標資産額の計算を追加
+st.sidebar.header("目標資産額の計算")
+
+# ユーザー入力
+annual_expenses = st.sidebar.number_input("年間生活費 (万円)", min_value=0, step=10, format="%d")
+expected_return_rate = st.sidebar.number_input("期待利回り (%)", min_value=0.0, max_value=100.0, step=0.1)
+inflation_rate = st.sidebar.number_input("インフレ率 (%)", min_value=0.0, max_value=100.0, step=0.1)
+
+# 4%ルールに基づく目標資産額の計算
+if expected_return_rate > inflation_rate:
+    safe_withdrawal_rate = (expected_return_rate - inflation_rate) / 100
+    target_assets = annual_expenses / safe_withdrawal_rate
+    st.sidebar.write(f"目標資産額: {target_assets:,.0f}万円")
+else:
+    st.sidebar.write("期待利回りはインフレ率より高く設定してください。")
+
+# 現在の達成率を計算
+current_assets = st.sidebar.number_input("現在の資産額 (万円)", min_value=0, step=10, format="%d")
+if expected_return_rate > inflation_rate and current_assets > 0:
+    achievement_rate = (current_assets / target_assets) * 100
+    st.sidebar.write(f"現在の達成率: {achievement_rate:.2f}%")
+
+# グラフ用データの作成
+if expected_return_rate > inflation_rate:
+    years_range = list(range(0, years + 1))
+    assets_values = [annual_expenses / ((expected_return_rate - inflation_rate) / 100)] * len(years_range)
+    
+    # 年間生活費のインフレ調整後
+    adjusted_expenses = [annual_expenses * (1 + inflation_rate / 100) ** year for year in years_range]
+
+    # グラフの作成
+    fig, ax = plt.subplots()
+    ax.plot(years_range, assets_values, label="目標資産額", color='green', linestyle='--')
+    ax.plot(years_range, adjusted_expenses, label="インフレ調整後の年間生活費", color='red')
+    ax.set_xlabel("年数")
+    ax.set_ylabel("金額 (万円)")
+    ax.set_title("目標資産額とインフレ調整後の年間生活費")
+    ax.legend()
+
+    # グラフを表示
+    st.pyplot(fig)
+
 
 # 年収と目標設定
 st.sidebar.header("目標設定")
