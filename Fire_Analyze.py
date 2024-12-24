@@ -138,7 +138,7 @@ def to_csv(df):
 def to_excel(df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Expenses')s
+        df.to_excel(writer, index=False, sheet_name='Expenses')
     return output.getvalue()
 def to_json(df):
     return df.to_json(orient="records", lines=True).encode('utf-8')
