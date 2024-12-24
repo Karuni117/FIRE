@@ -3,6 +3,8 @@ import sqlite3
 import pandas as pd
 import matplotlib.pyplot as plt
 from io import BytesIO
+import atexit
+
 
 # データベース接続
 conn = sqlite3.connect("expenses.db")
@@ -27,40 +29,6 @@ CREATE TABLE IF NOT EXISTS categories (
 )
 """)
 conn.commit()
-
-
-# 目標設定のテーブルを作成
-c.execute("""
-CREATE TABLE IF NOT EXISTS goals (
-    id INTEGER PRIMARY KEY,
-    annual_expenses INTEGER,
-    expected_return_rate REAL,
-    inflation_rate REAL,
-    years INTEGER,
-    current_assets INTEGER,
-    annual_income INTEGER,
-    income_growth_rate REAL,
-    current_stock_value INTEGER,
-    stock_growth_rate REAL
-)
-""")
-conn.commit()
-
-# 目標設定データの保存と取得
-def save_goals(annual_expenses, expected_return_rate, inflation_rate, years, current_assets,
-               annual_income, income_growth_rate, current_stock_value, stock_growth_rate):
-    c.execute("DELETE FROM goals")  # 古いデータを削除
-    c.execute("""
-        INSERT INTO goals (annual_expenses, expected_return_rate, inflation_rate, years, current_assets,
-                           annual_income, income_growth_rate, current_stock_value, stock_growth_rate)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (annual_expenses, expected_return_rate, inflation_rate, years, current_assets,
-          annual_income, income_growth_rate, current_stock_value, stock_growth_rate))
-    conn.commit()
-
-def get_goals():
-    c.execute("SELECT * FROM goals LIMIT 1")
-    return c.fetchone()
 
 # ヘルパー関数
 def add_expense(category, product, cost):
@@ -93,23 +61,6 @@ def delete_category(category_name):
 # カテゴリーの一覧を再取得
 categories = get_categories()
 categories = categories if categories else ["家賃", "食費", "交通費", "趣味"]  # カテゴリがない場合のデフォルト
-
-# 目標設定データを取得
-goal_data = get_goals()
-if goal_data:
-    (annual_expenses, expected_return_rate, inflation_rate, years, current_assets,
-     annual_income, income_growth_rate, current_stock_value, stock_growth_rate) = goal_data
-else:
-    # デフォルト値
-    annual_expenses = 0
-    expected_return_rate = 0.0
-    inflation_rate = 0.0
-    years = 0
-    current_assets = 0
-    annual_income = 0
-    income_growth_rate = 0.0
-    current_stock_value = 0
-    stock_growth_rate = 0.0
 
 # カテゴリー追加フォーム
 st.sidebar.header("カテゴリー管理")
@@ -342,7 +293,13 @@ def close_connection():
     print("データベース接続を終了しました。")
 
 # アプリ終了時の処理を登録
-st.on_event("shutdown", close_connection)
+
+def close_connection():
+    # コネクションを閉じる処理
+    print("Connection closed.")
+
+atexit.register(close_connection)
+
 
 # サイドバーの説明追加
 st.sidebar.write("アプリを閉じるとデータベースの接続が自動で切れます。")
