@@ -140,7 +140,6 @@ def to_excel(df):
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='Expenses')s
     return output.getvalue()
-s
 def to_json(df):
     return df.to_json(orient="records", lines=True).encode('utf-8')
 
