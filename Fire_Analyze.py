@@ -1,103 +1,92 @@
 import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
-
-# 日本語フォントを指定（Windowsの場合は「MS Gothic」など）
-rcParams['font.family'] = 'MS Gothic'
-
 import sqlite3
+import pandas as pd
 
-# データベースの初期化
+# データベース接続
 conn = sqlite3.connect("expenses.db")
 c = conn.cursor()
+
+# 新しいテーブルを作成（もし存在しない場合）
 c.execute("""
 CREATE TABLE IF NOT EXISTS expenses (
     id INTEGER PRIMARY KEY,
     category TEXT,
+    product TEXT,
     cost INTEGER
 )
 """)
 conn.commit()
 
 # ヘルパー関数
-def add_expense(category, cost):
-    c.execute("INSERT INTO expenses (category, cost) VALUES (?, ?)", (category, cost))
+def add_expense(category, product, cost):
+    c.execute("INSERT INTO expenses (category, product, cost) VALUES (?, ?, ?)", (category, product, cost))
     conn.commit()
 
 def get_expenses():
-    c.execute("SELECT category, cost FROM expenses")
-    return pd.DataFrame(c.fetchall(), columns=["カテゴリー", "費用"])
+    c.execute("SELECT id, category, product, cost FROM expenses")
+    return c.fetchall()
 
-def calculate_annual_income(total_expenses, inflation_rate, years):
-    return total_expenses * 12 * ((1 + inflation_rate) ** years)
-
-def calculate_fi(total_expenses, inflation_rate, years, investment_return):
-    annual_expenses = total_expenses * 12 * ((1 + inflation_rate) ** years)
-    return annual_expenses / investment_return
+def delete_expenses(expense_ids):
+    for expense_id in expense_ids:
+        c.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
+    conn.commit()
 
 # タイトル
-st.title("将来必要な費用計算アプリ")
+st.title("費用管理アプリ")
 
-# サイドバーで費用をまとめて入力
+# サイドバーでカテゴリーを選択し、商品名と費用を一括入力
 st.sidebar.header("費用の一括入力")
+
+categories = ["家賃", "食費", "交通費", "趣味"]  # カテゴリー例
+category = st.sidebar.selectbox("カテゴリーを選択", categories)
 with st.sidebar.form("expense_form"):
-    categories = st.text_area("カテゴリー名（カンマ区切り）", placeholder="例: 家賃, 食費, 交通費")
+    products = st.text_area("商品名（カンマ区切り）", placeholder="例: 家賃, 食費, 交通費")
     costs = st.text_area("費用（カンマ区切り）", placeholder="例: 50000, 30000, 10000")
     submitted = st.form_submit_button("一括追加")
     if submitted:
         try:
-            # 入力を処理
-            category_list = categories.split(",")
+            # 入力された商品名と費用を処理
+            product_list = products.split(",")
             cost_list = [int(cost.strip()) for cost in costs.split(",")]
-            if len(category_list) == len(cost_list):
-                for category, cost in zip(category_list, cost_list):
-                    add_expense(category.strip(), cost)
+            if len(product_list) == len(cost_list):
+                for product, cost in zip(product_list, cost_list):
+                    add_expense(category, product.strip(), cost)
                 st.sidebar.success("データを一括追加しました！")
             else:
-                st.sidebar.error("カテゴリーと費用の数が一致していません。")
+                st.sidebar.error("商品名と費用の数が一致していません。")
         except ValueError:
             st.sidebar.error("費用には数値を入力してください。")
 
-# 費用一覧の表示
-expenses_df = get_expenses()
-if not expenses_df.empty:
+# 費用一覧の表示（DataFrameとして表示）
+expenses = get_expenses()
+if expenses:
     st.subheader("費用一覧")
-    st.dataframe(expenses_df)
+    
+    # DataFrameに変換
+    expenses_df = pd.DataFrame(expenses, columns=["ID", "カテゴリー", "商品名", "費用"])
+    
+    # 表を表示
+    st.dataframe(expenses_df.drop("ID", axis=1))  # IDは表示しない
+    
+    # チェックボックスを表示する
+    selected_ids_to_delete = []
+    for index, row in expenses_df.iterrows():
+        expense_id = row['ID']
+        product_name = row['商品名']  # 商品名を表示
+        checkbox = st.checkbox(f"削除: {product_name}", key=f"delete_{expense_id}")
+        if checkbox:
+            selected_ids_to_delete.append(expense_id)
 
-    # 合計費用
-    total_expenses = expenses_df["費用"].sum()
-    st.write(f"### 月の合計費用: {total_expenses:,} 円")
-
-    # 必要収入を計算
-    inflation_rate = st.slider("想定インフレ率（%）", 0.0, 5.0, 2.0) / 100
-    years = st.slider("目標達成までの年数", 1, 50, 10)
-    if st.button("必要収入を計算"):
-        annual_income_needed = calculate_annual_income(total_expenses, inflation_rate, years)
-        st.write(f"### 必要な年間収入（将来価値）: {annual_income_needed:,.0f} 円")
-
-    # FIを計算
-    investment_return = st.slider("投資の想定利回り（%）", 1.0, 10.0, 4.0) / 100
-    if st.button("FIに必要な金額を計算"):
-        fi_amount = calculate_fi(total_expenses, inflation_rate, years, investment_return)
-        st.write(f"### FIに必要な総額: {fi_amount:,.0f} 円")
-
-    # 費用のグラフ表示
-    st.subheader("費用の視覚化")
-    fig, ax = plt.subplots()
-    expenses_df.plot(kind="bar", x="カテゴリー", y="費用", ax=ax, legend=False, color="skyblue")
-    ax.set_ylabel("費用（円）")
-    ax.set_title("カテゴリーごとの費用")
-    st.pyplot(fig)
-
+    # 削除ボタン
+    if st.button("選択した項目を削除"):
+        if selected_ids_to_delete:
+            delete_expenses(selected_ids_to_delete)
+            st.success(f"{len(selected_ids_to_delete)} 項目が削除されました。")
+            st.experimental_rerun()  # ページを再読み込みして最新のデータを表示
+        else:
+            st.warning("削除する項目を選択してください。")
 else:
     st.write("まだ費用が入力されていません。サイドバーから入力してください。")
-
-# データ削除オプション
-if st.sidebar.button("データをリセット"):
-    c.execute("DELETE FROM expenses")
-    conn.commit()
-    st.sidebar.success("データベースをリセットしました！")
 
 # アプリ終了時の接続クローズ
 st.sidebar.write("アプリを閉じるとデータベースの接続が自動で切れます。")
