@@ -28,6 +28,40 @@ CREATE TABLE IF NOT EXISTS categories (
 """)
 conn.commit()
 
+
+# 目標設定のテーブルを作成
+c.execute("""
+CREATE TABLE IF NOT EXISTS goals (
+    id INTEGER PRIMARY KEY,
+    annual_expenses INTEGER,
+    expected_return_rate REAL,
+    inflation_rate REAL,
+    years INTEGER,
+    current_assets INTEGER,
+    annual_income INTEGER,
+    income_growth_rate REAL,
+    current_stock_value INTEGER,
+    stock_growth_rate REAL
+)
+""")
+conn.commit()
+
+# 目標設定データの保存と取得
+def save_goals(annual_expenses, expected_return_rate, inflation_rate, years, current_assets,
+               annual_income, income_growth_rate, current_stock_value, stock_growth_rate):
+    c.execute("DELETE FROM goals")  # 古いデータを削除
+    c.execute("""
+        INSERT INTO goals (annual_expenses, expected_return_rate, inflation_rate, years, current_assets,
+                           annual_income, income_growth_rate, current_stock_value, stock_growth_rate)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (annual_expenses, expected_return_rate, inflation_rate, years, current_assets,
+          annual_income, income_growth_rate, current_stock_value, stock_growth_rate))
+    conn.commit()
+
+def get_goals():
+    c.execute("SELECT * FROM goals LIMIT 1")
+    return c.fetchone()
+
 # ヘルパー関数
 def add_expense(category, product, cost):
     c.execute("INSERT INTO expenses (category, product, cost) VALUES (?, ?, ?)", (category, product, cost))
@@ -59,6 +93,23 @@ def delete_category(category_name):
 # カテゴリーの一覧を再取得
 categories = get_categories()
 categories = categories if categories else ["家賃", "食費", "交通費", "趣味"]  # カテゴリがない場合のデフォルト
+
+# 目標設定データを取得
+goal_data = get_goals()
+if goal_data:
+    (annual_expenses, expected_return_rate, inflation_rate, years, current_assets,
+     annual_income, income_growth_rate, current_stock_value, stock_growth_rate) = goal_data
+else:
+    # デフォルト値
+    annual_expenses = 0
+    expected_return_rate = 0.0
+    inflation_rate = 0.0
+    years = 0
+    current_assets = 0
+    annual_income = 0
+    income_growth_rate = 0.0
+    current_stock_value = 0
+    stock_growth_rate = 0.0
 
 # カテゴリー追加フォーム
 st.sidebar.header("カテゴリー管理")
@@ -131,7 +182,7 @@ st.sidebar.header("目標資産額の計算")
 annual_expenses = st.sidebar.number_input("年間生活費 (万円)", min_value=0, step=10, format="%d")
 expected_return_rate = st.sidebar.number_input("期待利回り (%)", min_value=0.0, max_value=100.0, step=0.1)
 inflation_rate = st.sidebar.number_input("インフレ率 (%)", min_value=0.0, max_value=100.0, step=0.1)
-
+years = st.sidebar.number_input("計画年数(年)",min_value=0,step=1,format="%d")
 # 4%ルールに基づく目標資産額の計算
 if expected_return_rate > inflation_rate:
     safe_withdrawal_rate = (expected_return_rate - inflation_rate) / 100
@@ -285,5 +336,13 @@ if expenses:
 else:
     st.write("まだ費用が入力されていません。サイドバーから入力してください。")
 
-# アプリ終了時の接続クローズ
+# Streamlitの終了時にデータベース接続を閉じる
+def close_connection():
+    conn.close()
+    print("データベース接続を終了しました。")
+
+# アプリ終了時の処理を登録
+st.on_event("shutdown", close_connection)
+
+# サイドバーの説明追加
 st.sidebar.write("アプリを閉じるとデータベースの接続が自動で切れます。")
