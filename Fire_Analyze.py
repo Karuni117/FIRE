@@ -83,7 +83,7 @@ if st.sidebar.button("カテゴリー削除"):
         delete_category(category_to_delete)
         st.sidebar.success(f"'{category_to_delete}' カテゴリーを削除しました！")
         categories = get_categories()  # 最新のカテゴリーリストを取得
-        st.sidebar.experimental_rerun()  # ページを再読み込み
+        st.experimental_rerun()  # ページを再読み込み
     else:
         st.sidebar.warning("削除するカテゴリーを選択してください。")
 
