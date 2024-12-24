@@ -2,11 +2,11 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+import sqlite3
+import io
 
 # 日本語フォントを指定（Windowsの場合は「MS Gothic」など）
 rcParams['font.family'] = 'MS Gothic'
-
-import sqlite3
 
 # データベースの初期化
 conn = sqlite3.connect("expenses.db")
@@ -89,6 +89,23 @@ if not expenses_df.empty:
     ax.set_ylabel("費用（円）")
     ax.set_title("カテゴリーごとの費用")
     st.pyplot(fig)
+
+    # CSVデータを出力するためのボタン
+    st.subheader("CSVデータのダウンロード")
+    
+    # DataFrameをCSVに変換
+    csv = expenses_df.to_csv(index=False)
+    
+    # CSVをバイナリ形式に変換
+    csv_buffer = io.StringIO(csv)
+
+    # ダウンロードボタン
+    st.download_button(
+        label="CSVファイルをダウンロード",
+        data=csv_buffer.getvalue(),
+        file_name="expenses.csv",
+        mime="text/csv"
+    )
 
 else:
     st.write("まだ費用が入力されていません。サイドバーから入力してください。")
